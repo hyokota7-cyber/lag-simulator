@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rug Color Simulator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Helvetica Neue', Helvetica, sans-serif;
+    background: #f0ede8;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  h1 { font-size: 11px; letter-spacing: 0.2em; color: #aaa; text-transform: uppercase; margin-bottom: 20px; }
+
+  /* プレビュー */
+  .rug-wrap {
+    width: 100%; max-width: 420px;
+    filter: drop-shadow(4px 10px 20px rgba(0,0,0,0.2));
+    margin-bottom: 28px;
+  }
+
+  /* パターン名 */
+  .pattern-label {
+    font-size: 13px; color: #555; text-align: center;
+    margin-bottom: 20px; min-height: 20px;
+    letter-spacing: 0.04em;
+  }
+  .pattern-label span { color: #aaa; font-size: 11px; margin-right: 6px; }
+
+  /* パターングリッド */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: 100%; max-width: 420px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+  }
+  .card:active { transform: scale(0.95); }
+  .card.active { border-color: #555; }
+  .card-mini {
+    width: 100%;
+    aspect-ratio: 4/3;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .card-num {
+    font-size: 10px;
+    color: #bbb;
+  }
+
+  /* カスタムカラー（折りたたみ） */
+  .custom-toggle {
+    width: 100%; max-width: 420px;
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #888;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0;
+    transition: background 0.2s;
+  }
+  .custom-toggle:hover { background: rgba(0,0,0,0.03); }
+  .custom-toggle .arrow { transition: transform 0.2s; }
+  .custom-toggle.open .arrow { transform: rotate(180deg); }
+
+  .custom-panel {
+    display: none;
+    width: 100%; max-width: 420px;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    padding: 16px;
+    gap: 12px;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e0e0e0;
+    border-top: none;
+  }
+  .custom-panel.open { display: grid; }
+  .ctrl {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+  }
+  .swatch {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 2px solid rgba(0,0,0,0.08);
+    flex-shrink: 0; position: relative; overflow: hidden;
+  }
+  .swatch input[type=color] {
+    position: absolute; top: -4px; left: -4px;
+    width: 44px; height: 44px;
+    border: none; cursor: pointer; opacity: 0;
+  }
+  .ctrl-label { font-size: 11px; color: #666; line-height: 1.5; }
+  .ctrl-label small { color: #bbb; font-size: 10px; }
+
+  /* セクションラベル */
+  .section-label {
+    width: 100%; max-width: 420px;
+    font-size: 10px; letter-spacing: 0.1em;
+    color: #bbb; text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px; background: #ddd;
+  }
+</style>
+</head>
+<body>
+<h1>Rug Color Simulator</h1>
+
+<div class="rug-wrap">
+  <svg id="rugSvg" viewBox="0 0 520 380" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="rugClip">
+        <polygon points="80,30 460,30 500,350 20,350"/>
+      </clipPath>
+    </defs>
+    <polygon id="zoneL" points="80,30 245,30 251,212 255,350 20,350" fill="#ede8e3" clip-path="url(#rugClip)"/>
+    <polygon id="zoneR" points="370,30 460,30 500,350 255,350 251,212" fill="#d0cbc4" clip-path="url(#rugClip)"/>
+    <polygon id="zoneDark" points="245,30 370,30 251,212" fill="#2e2a2e" clip-path="url(#rugClip)"/>
+    <polygon id="zoneGold" points="251,212 160,350 255,350" fill="#c4644a" clip-path="url(#rugClip)"/>
+    <polygon points="80,30 460,30 500,350 20,350" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="1.5"/>
+  </svg>
+</div>
+
+<div class="pattern-label" id="patternLabel"><span>#1</span>オフホワイト × ライトグレー ／ テラコッタ</div>
+
+<div class="section-label">差し色1つ</div>
+<div class="grid" id="grid1"></div>
+
+<div class="section-label">差し色2つ</div>
+<div class="grid" id="grid2"></div>
+
+<button class="custom-toggle" id="toggleBtn" onclick="toggleCustom()">
+  カスタムカラーで細かく調整
+  <span class="arrow">▾</span>
+</button>
+<div class="custom-panel" id="customPanel">
+  <div class="ctrl" onclick="document.getElementById('colorL').click()">
+    <div class="swatch" id="swatchL" style="background:#ede8e3">
+      <input type="color" id="colorL" value="#ede8e3" oninput="updateColor('L',this.value)">
+    </div>
+    <span class="ctrl-label">左<br><small>オフホワイト</small></span>
+  </div>
+  <div class="ctrl" onclick="document.getElementById('colorR').click()">
+    <div class="swatch" id="swatchR" style="background:#d0cbc4">
+      <input type="color" id="colorR" value="#d0cbc4" oninput="updateColor('R',this.value)">
+    </div>
+    <span class="ctrl-label">右<br><small id="labelR">ライトグレー</small></span>
+  </div>
+  <div class="ctrl" onclick="document.getElementById('colorDark').click()">
+    <div class="swatch" id="swatchDark" style="background:#2e2a2e">
+      <input type="color" id="colorDark" value="#2e2a2e" oninput="updateColor('Dark',this.value)">
+    </div>
+    <span class="ctrl-label">上三角<br><small id="labelDark">チャコール</small></span>
+  </div>
+  <div class="ctrl" onclick="document.getElementById('colorGold').click()">
+    <div class="swatch" id="swatchGold" style="background:#c4644a">
+      <input type="color" id="colorGold" value="#c4644a" oninput="updateColor('Gold',this.value)">
+    </div>
+    <span class="ctrl-label">下三角<br><small id="labelGold">テラコッタ</small></span>
+  </div>
+</div>
+
+<script>
+const patterns = [
+  { l:'#ede8e3', r:'#d0cbc4', d:'#2e2a2e', g:'#c4644a', name:'オフホワイト × ライトグレー', accent:'テラコッタ' },
+  { l:'#ede8e3', r:'#c8b99a', d:'#1e2d50', g:'#c9a84c', name:'オフホワイト × ベージュ', accent:'マスタード' },
+  { l:'#c8c8c8', r:'#9a9a9a', d:'#3a3a3a', g:'#7a9e7e', name:'ライトグレー × ミドルグレー', accent:'セージグリーン' },
+  { l:'#f5ecd7', r:'#d4c4a0', d:'#3d2510', g:'#d4662a', name:'クリーム × サンド', accent:'バーントオレンジ' },
+  { l:'#ede8e3', r:'#d8d4d0', d:'#2e2a2e', g:'#c4909a', name:'オフホワイト × ペールグレー', accent:'ダスティローズ' },
+  { l:'#ede8e3', r:'#c8c8c8', d:'#1e2d50', g:'#c4644a', name:'オフホワイト × ライトグレー', accent:'ネイビー＋テラコッタ' },
+  { l:'#f5ecd7', r:'#c8b99a', d:'#4a2830', g:'#6b7a3a', name:'クリーム × ベージュ', accent:'バーガンディ＋オリーブ' },
+  { l:'#c8c8c8', r:'#b0a898', d:'#c9a84c', g:'#c4644a', name:'ライトグレー × ウォームグレー', accent:'マスタード＋テラコッタ' },
+  { l:'#ede8e3', r:'#8aa8c4', d:'#1e2d50', g:'#c9a84c', name:'オフホワイト × ダスティブルー', accent:'ネイビー＋ゴールド' },
+  { l:'#f5ecd7', r:'#8aac8a', d:'#2a4a2a', g:'#e8a090', name:'クリーム × セージ', accent:'ダークグリーン＋サーモン' },
+];
+
+let activeIdx = 0;
+
+function makeMiniSvg(p) {
+  return `<svg viewBox="0 0 52 38" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;display:block;">
+    <defs><clipPath id="c"><polygon points="8,3 46,3 50,35 2,35"/></clipPath></defs>
+    <polygon points="8,3 24.5,3 25.1,21.2 25.5,35 2,35" fill="${p.l}" clip-path="url(#c)"/>
+    <polygon points="37,3 46,3 50,35 25.5,35 25.1,21.2" fill="${p.r}" clip-path="url(#c)"/>
+    <polygon points="24.5,3 37,3 25.1,21.2" fill="${p.d}" clip-path="url(#c)"/>
+    <polygon points="25.1,21.2 16,35 25.5,35" fill="${p.g}" clip-path="url(#c)"/>
+    <polygon points="8,3 46,3 50,35 2,35" fill="none" stroke="rgba(0,0,0,0.06)" stroke-width="0.5"/>
+  </svg>`;
+}
+
+function buildGrid() {
+  ['grid1','grid2'].forEach((id, gi) => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    for (let i = gi*5; i < gi*5+5; i++) {
+      const p = patterns[i];
+      const card = document.createElement('div');
+      card.className = 'card' + (i === 0 ? ' active' : '');
+      card.id = 'card'+i;
+      card.innerHTML = `<div class="card-mini">${makeMiniSvg(p)}</div><div class="card-num">${i+1}</div>`;
+      card.onclick = () => applyPattern(i);
+      el.appendChild(card);
+    }
+  });
+}
+
+function applyPattern(idx) {
+  const p = patterns[idx];
+  activeIdx = idx;
+  updateColor('L', p.l); updateColor('R', p.r);
+  updateColor('Dark', p.d); updateColor('Gold', p.g);
+  document.getElementById('colorL').value = p.l;
+  document.getElementById('colorR').value = p.r;
+  document.getElementById('colorDark').value = p.d;
+  document.getElementById('colorGold').value = p.g;
+  document.getElementById('patternLabel').innerHTML = `<span>#${idx+1}</span>${p.name} ／ ${p.accent}`;
+  document.querySelectorAll('.card').forEach((c,i) => c.classList.toggle('active', i===idx));
+}
+
+function updateColor(zone, val) {
+  document.getElementById('zone'+zone).setAttribute('fill', val);
+  document.getElementById('swatch'+zone).style.background = val;
+}
+
+function toggleCustom() {
+  const btn = document.getElementById('toggleBtn');
+  const panel = document.getElementById('customPanel');
+  btn.classList.toggle('open');
+  panel.classList.toggle('open');
+}
+
+buildGrid();
+</script>
+</body>
+</html>
